@@ -5,7 +5,7 @@
 ## Installation
     
 ```bash
-pip install ch340-nrf
+pip install ch340_nrf
 ```
 
 ## Usage
@@ -52,4 +52,4 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 - [ ] Improve reliablity (remove time.sleep())
 
 ## Thanks
-Thanks for using ch340-nrf!
+Thanks for using ch340_nrf!
