@@ -22,11 +22,16 @@ jobs:
         - name: Build
           run: >-
             python3 -m build --sdist --wheel --outdir dist/ .
+        - name: Read version
+          id: read_version
+          run: >-
+            echo ::set-output name=VERSION::$(ls dist/*.whl | sed -E 's/.*-([0-9]+\.[0-9]+\.[0-9]+(-[a-z]+)?(-[0-9]+)?).*/\1/')
         - name: Release
-          if: github.ref == 'refs/heads/main' && github.event_name == 'push'
           uses: softprops/action-gh-release@v1
           with:
             files: dist/*
+            tag_name: ${{ steps.read_version.outputs.VERSION }}
+            body: ${{ steps.read_version.outputs.VERSION }}
         - name: Publish
           uses: pypa/gh-action-pypi-publish@release/v1
           with:
