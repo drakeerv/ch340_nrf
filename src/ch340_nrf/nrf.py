@@ -28,6 +28,7 @@ RATE_250K = 1
 RATE_1M = 2
 RATE_2M = 3
 
+
 class NRF:
     def __init__(self, port: str, baudrate: int = 2, rate: int = 3, local_address: list[int] = [0xff, 0xff, 0xff, 0xff, 0xff], target_address: list[int] = [0xff, 0xff, 0xff, 0xff, 0xff], freq: int = 400, checksum: int = 16, translate: bool = True) -> None:
         if baudrate not in BAUDRATES:
@@ -62,7 +63,7 @@ class NRF:
                 message = translator.translate(message)
 
             return message
-        
+
     def read_all_messages(self, system=False) -> list[str]:
         messages = []
 
@@ -98,7 +99,8 @@ class NRF:
         if len(local_address) != 5:
             raise ValueError("Invalid address")
 
-        self.send_message("AT+RXA=" + ",".join([f"0x{byte:02X}" for byte in local_address]))
+        self.send_message(
+            "AT+RXA=" + ",".join([f"0x{byte:02X}" for byte in local_address]))
         self.local_address = local_address
 
         time.sleep(0.2)
@@ -108,7 +110,8 @@ class NRF:
         if len(target_address) != 5:
             raise ValueError("Invalid address")
 
-        self.send_message("AT+TXA=" + ",".join([f"0x{byte:02X}" for byte in target_address]))
+        self.send_message(
+            "AT+TXA=" + ",".join([f"0x{byte:02X}" for byte in target_address]))
         self.target_address = target_address
 
         time.sleep(0.2)
@@ -127,7 +130,7 @@ class NRF:
     def set_checksum(self, checksum: int) -> None:
         if checksum < 8 or checksum > 16:
             raise ValueError("Invalid checksum")
-        
+
         self.send_message("AT+CRC=" + str(checksum))
         self.checksum = checksum
 
@@ -149,22 +152,28 @@ class NRF:
                 info["baudrate"] = int(text.split("：")[1].strip())
 
             elif line == 3:
-                info["target_address"] = [int(byte, 16) for byte in text.split("：")[1].strip().split(",")]
+                info["target_address"] = [int(byte, 16) for byte in text.split("：")[
+                    1].strip().split(",")]
 
             elif line == 4:
-                info["local_address"] = [int(byte, 16) for byte in text.split("：")[1].strip().split(",")]
+                info["local_address"] = [int(byte, 16) for byte in text.split("：")[
+                    1].strip().split(",")]
 
             elif line == 5:
-                info["freq"] = float(text.split("：")[1].strip().replace("GHz", ""))
+                info["freq"] = float(text.split(
+                    "：")[1].strip().replace("GHz", ""))
 
             elif line == 6:
-                info["checksum"] = int(text.split("：")[1].strip().replace("Bit CRC Check", ""))
+                info["checksum"] = int(text.split(
+                    "：")[1].strip().replace("Bit CRC Check", ""))
 
             elif line == 7:
-                info["power"] = int(text.split("：")[1].strip().replace("dBm", ""))
+                info["power"] = int(text.split(
+                    "：")[1].strip().replace("dBm", ""))
 
             elif line == 8:
-                info["rate"] = float(text.split("：")[1].strip().replace("Mbps", ""))
+                info["rate"] = float(text.split(
+                    "：")[1].strip().replace("Mbps", ""))
 
             elif line == 9:
                 info["gain"] = text.split("：")[1].strip()

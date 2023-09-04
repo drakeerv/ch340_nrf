@@ -17,6 +17,7 @@ TRANSLATIONS = {
     "关闭": "Off"
 }
 
+
 def translate(text: str) -> str:
     for chinese, english in TRANSLATIONS.items():
         text = text.replace(chinese, english)

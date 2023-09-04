@@ -5,20 +5,16 @@ build-backend = "hatchling.build"
 [project]
 name = "ch340_nrf"
 version = "0.0.2"
-authors = [
-  { name="drakeerv", email="drakeerv@outlook.com" },
-]
+authors = [{ name = "drakeerv", email = "drakeerv@outlook.com" }]
 description = "Allows you to use the ch340 nrf usb adapter with python. This project is currently in developement."
 readme = "README.md"
 requires-python = ">=3.0"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
 ]
-dependencies = [
-  "pyserial",
-]
+dependencies = ["pyserial"]
 
 [project.urls]
 "Homepage" = "https://github.com/drakeerv/ch340_nrf"
