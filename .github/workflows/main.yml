@@ -24,11 +24,9 @@ jobs:
             python3 -m build --sdist --wheel --outdir dist/ .
         - name: Release
           if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-          run: |
-            git config --global user.name "github-actions"
-            git config --global user.email "action@github.com"
-            git tag -a v${{ github.run_number }} -m "Release v${{ github.run_number }}"
-            git push --follow-tags
+          uses: softprops/action-gh-release@v1
+          with:
+            files: dist/*
         - name: Publish
           uses: pypa/gh-action-pypi-publish@release/v1
           with:
