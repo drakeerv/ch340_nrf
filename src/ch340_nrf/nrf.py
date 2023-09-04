@@ -32,11 +32,13 @@ RATE_250K = 1
 RATE_1M = 2
 RATE_2M = 3
 
+# pylint: disable=too-many-instance-attributes
 class NRF:
     """
     NRF class for controlling nrf modules with CH340 serial adapters
     """
 
+    # pylint: disable=too-many-arguments
     def __init__(self,
                  port: str,
                  baudrate: int = 2,
