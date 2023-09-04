@@ -1,3 +1,7 @@
+"""
+This module contains the translation dictionary for the CH340-NRF module.
+"""
+
 TRANSLATIONS = {
     "通讯波特率设置成功": "Communication baud rate set successfully",
     "传输速率设置成功": "Transmission rate set successfully",
@@ -19,6 +23,10 @@ TRANSLATIONS = {
 
 
 def translate(text: str) -> str:
+    """
+    Translates the given text from Chinese to English
+    """
+
     for chinese, english in TRANSLATIONS.items():
         text = text.replace(chinese, english)
 

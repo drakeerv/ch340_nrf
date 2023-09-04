@@ -1,6 +1,10 @@
-from . import translator
-import serial
+"""
+Main nrf class for controlling nrf modules with CH340 serial adapters
+"""
+
 import time
+import serial
+from . import translator
 
 BAUDRATES = {
     1: 4800,
@@ -28,9 +32,20 @@ RATE_250K = 1
 RATE_1M = 2
 RATE_2M = 3
 
-
 class NRF:
-    def __init__(self, port: str, baudrate: int = 2, rate: int = 3, local_address: list[int] = [0xff, 0xff, 0xff, 0xff, 0xff], target_address: list[int] = [0xff, 0xff, 0xff, 0xff, 0xff], freq: int = 400, checksum: int = 16, translate: bool = True) -> None:
+    """
+    NRF class for controlling nrf modules with CH340 serial adapters
+    """
+
+    def __init__(self,
+                 port: str,
+                 baudrate: int = 2,
+                 rate: int = 3,
+                 local_address: tuple[int] = (0xff, 0xff, 0xff, 0xff, 0xff),
+                 target_address: tuple[int] = (0xff, 0xff, 0xff, 0xff, 0xff),
+                 freq: int = 400,
+                 checksum: int = 16,
+                 translate: bool = True) -> None:
         if baudrate not in BAUDRATES:
             raise ValueError("Invalid baudrate")
 
@@ -46,11 +61,20 @@ class NRF:
         self.set_local_address(local_address)
         self.set_target_address(target_address)
         self.set_freq(freq)
+        self.set_checksum(checksum)
 
     def send_message(self, message: str) -> None:
+        """
+        Sends a message to the nrf module
+        """
+
         self.serial_port.write((message + "\r\n").encode())
 
     def read_message(self, system=False) -> str | None:
+        """
+        Reads a message from the nrf module
+        """
+
         if self.serial_port.in_waiting > 0:
             message = self.serial_port.readline()
 
@@ -63,8 +87,13 @@ class NRF:
                 message = translator.translate(message)
 
             return message
+        return None
 
     def read_all_messages(self, system=False) -> list[str]:
+        """
+        Reads all messages from the nrf module
+        """
+
         messages = []
 
         while self.serial_port.in_waiting > 0:
@@ -73,6 +102,10 @@ class NRF:
         return messages
 
     def set_baudrate(self, baudrate: int) -> None:
+        """
+        Sets the baudrate of the serial port
+        """
+
         if baudrate not in BAUDRATES:
             raise ValueError("Invalid baudrate")
 
@@ -84,6 +117,10 @@ class NRF:
         self.read_all_messages(system=True)
 
     def set_rate(self, rate: int) -> None:
+        """
+        Sets the transmission rate of the nrf module
+        """
+
         if rate not in RATE:
             raise ValueError("Invalid rate")
 
@@ -96,6 +133,10 @@ class NRF:
             self.read_message(system=True)
 
     def set_local_address(self, local_address: list[int]) -> None:
+        """
+        Sets the local address of the nrf module
+        """
+
         if len(local_address) != 5:
             raise ValueError("Invalid address")
 
@@ -107,6 +148,10 @@ class NRF:
         self.read_all_messages(system=True)
 
     def set_target_address(self, target_address: list[int]) -> None:
+        """
+        Sets the target address of the nrf module
+        """
+
         if len(target_address) != 5:
             raise ValueError("Invalid address")
 
@@ -118,6 +163,10 @@ class NRF:
         self.read_all_messages(system=True)
 
     def set_freq(self, freq: int) -> None:
+        """
+        Sets the frequency of the nrf module
+        """
+
         if freq < 400 or freq > 525:
             raise ValueError("Invalid frequency")
 
@@ -128,6 +177,10 @@ class NRF:
         self.read_all_messages(system=True)
 
     def set_checksum(self, checksum: int) -> None:
+        """
+        Sets the checksum of the nrf module
+        """
+
         if checksum < 8 or checksum > 16:
             raise ValueError("Invalid checksum")
 
@@ -138,6 +191,10 @@ class NRF:
         self.read_all_messages(system=True)
 
     def get_system_info(self) -> dict[str, str]:
+        """
+        Gets the system information of the nrf module
+        """
+
         self.send_message("AT?")
         time.sleep(1)
 
