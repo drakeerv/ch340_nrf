@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ch340_nrf"
-version = "0.0.4"
+version = "0.0.5"
 authors = [{ name = "drakeerv", email = "drakeerv@outlook.com" }]
 description = "Allows you to use the ch340 nrf usb adapter with python. This project is currently in developement."
 readme = "README.md"
