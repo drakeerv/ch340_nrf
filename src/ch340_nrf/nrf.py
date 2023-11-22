@@ -126,12 +126,17 @@ class NRF:
     """
 
     def __init__(
-        self, port: str, config: Config = Config(), translate: bool = True
+        self, port: str, config: Config | None = None, translate: bool = True
     ) -> None:
         self.serial_port = serial.Serial(port=port, baudrate=config.baudrate.value)
 
         self.translate = translate
-        self.set_config(config)
+
+        if config:
+            self._config = config
+            self.set_config(config)
+        else:
+            self._config = self.get_config()
 
     def send_message(self, message: str) -> None:
         """Sends a message to the nrf module"""
@@ -173,6 +178,7 @@ class NRF:
 
         self.send_message("AT+BAUD=" + str(baudrate.value))
         self.serial_port.baudrate = baudrate.value
+        self._config.baudrate = baudrate
 
         time.sleep(0.2)
         return self.read_all_messages(system=True)
@@ -184,6 +190,7 @@ class NRF:
             raise ValueError("Invalid rate")
 
         self.send_message("AT+RATE=" + str(rate.value))
+        self._config.rate = rate
 
         time.sleep(0.2)
         return self.read_all_messages(system=True)
@@ -197,6 +204,7 @@ class NRF:
         self.send_message(
             "AT+RXA=" + ",".join([f"0x{byte:02X}" for byte in local_address])
         )
+        self._config.local_address = local_address
 
         time.sleep(0.2)
         return self.read_all_messages(system=True)
@@ -210,6 +218,7 @@ class NRF:
         self.send_message(
             "AT+TXA=" + ",".join([f"0x{byte:02X}" for byte in target_address])
         )
+        self._config.target_address = target_address
 
         time.sleep(0.2)
         return self.read_all_messages(system=True)
@@ -221,6 +230,7 @@ class NRF:
             raise ValueError("Invalid frequency")
 
         self.send_message("AT+FREQ=" + str(freq))
+        self._config.freq = freq
 
         time.sleep(0.2)
         return self.read_all_messages(system=True)
@@ -232,11 +242,12 @@ class NRF:
             raise ValueError("Invalid checksum")
 
         self.send_message("AT+CRC=" + str(checksum))
+        self._config.checksum = checksum
 
         time.sleep(0.2)
         self.read_all_messages(system=True)
 
-    def get_system_info(self) -> dict[str, str]:
+    def get_system_info(self) -> dict[str, any] | None:
         """Gets the system information of the nrf module"""
 
         def get_value(line: str) -> str:
@@ -280,29 +291,35 @@ class NRF:
             elif line == 9:
                 info["gain"] = get_value(text)
 
+        if not info:
+            return None
+
         return info
+
+    def get_config(self, system_info: dict[str | any] | None = None ) -> Config | None:
+        """Convert system info into a Config"""
+
+        return Config(**(system_info if system_info else self.get_system_info()))
 
     def set_config(self, config: Config) -> None:
         """Sets the configuration of the nrf module"""
 
-        system_info = self.get_system_info()
-
-        if config.baudrate != system_info["baudrate"]:
+        if config.baudrate != self._config.baudrate:
             self.set_baudrate(config.baudrate)
 
-        if config.rate != system_info["rate"]:
+        if config.rate != self._config.rate:
             self.set_rate(config.rate)
 
-        if config.local_address != system_info["local_address"]:
+        if config.local_address != self._config.local_address:
             self.set_local_address(config.local_address)
 
-        if config.target_address != system_info["target_address"]:
+        if config.target_address != self._config.target_address:
             self.set_target_address(config.target_address)
 
-        if config.freq != system_info["freq"]:
+        if config.freq != self._config.freq:
             self.set_freq(config.freq)
 
-        if config.checksum != system_info["checksum"]:
+        if config.checksum != self._config.checksum:
             self.set_checksum(config.checksum)
 
         self._config = config
