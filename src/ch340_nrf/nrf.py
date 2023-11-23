@@ -126,16 +126,11 @@ class Config:
 
 
 class NRF:
-    """
-    NRF class for controlling nrf modules with CH340 serial adapters
-    """
+    """NRF class for controlling nrf modules with CH340 serial adapters"""
 
     def __init__(
-        self, port: str, config: Config | None = None, translate: bool = True
-    ) -> None:
+        self, port: str, config: Config | None = None) -> None:
         self.serial_port = serial.Serial(port=port, baudrate=config.baudrate.value)
-
-        self.translate = translate
 
         if config:
             self._config = config
@@ -143,35 +138,41 @@ class NRF:
         else:
             self._config = self.get_config()
 
-    def send_message(self, message: str) -> None:
+    def send_message(self, message: str, newline: bool = False) -> None:
         """Sends a message to the nrf module"""
 
-        self.serial_port.write((message + "\r\n").encode())
+        self.serial_port.write((message + ("\r\n" if newline else "")).encode())
 
-    def read_message(self, system=False) -> str | None:
+    def read_message(
+        self,
+        system: bool = False,
+        read_all: bool = False,
+        blocking: bool = False,
+        timeout: float = 1.0,
+    ) -> str | None | list[str]:
         """Reads a message from the nrf module"""
 
-        if self.serial_port.in_waiting > 0:
-            message = self.serial_port.readline()
-
-            if system:
-                message = message.decode("gb18030")
-            else:
-                message = message.decode("utf-8")
-
-            if self.translate:
-                message = translator.translate(message)
-
-            return message
-        return None
-
-    def read_all_messages(self, system=False) -> list[str]:
-        """Reads all messages from the nrf module"""
+        if blocking:
+            start = time.time()
+            while self.serial_port.in_waiting == 0:
+                if time.time() - start > timeout:
+                    return None
+                time.sleep(0.01)
 
         messages = []
 
         while self.serial_port.in_waiting > 0:
-            messages.append(self.read_message(system=system))
+            message = self.serial_port.readline()
+
+            if system:
+                message = translator.translate(message.decode("gb18030"))
+            else:
+                message = message.decode("utf-8")
+
+            if not read_all:
+                return message
+
+            messages.append(message)
 
         return messages
 
@@ -181,13 +182,11 @@ class NRF:
         if baudrate not in BAUDRATE:
             raise ValueError("Invalid baudrate")
 
-        self.send_message("AT+BAUD=" + str(baudrate.value))
+        self.send_message("AT+BAUD=" + str(baudrate.value), newline=True)
         self.serial_port.baudrate = baudrate.value
         self._config.baudrate = baudrate
 
-        while not self.serial_port.in_waiting:
-            time.sleep(0.01)
-        return self.read_all_messages(system=True)
+        return self.read_message(system=True, read_all=True, blocking=True)
 
     def set_rate(self, rate: RATE) -> list[str]:
         """Sets the transmission rate of the nrf module"""
@@ -195,12 +194,10 @@ class NRF:
         if rate not in RATE:
             raise ValueError("Invalid rate")
 
-        self.send_message("AT+RATE=" + str(rate.value))
+        self.send_message("AT+RATE=" + str(rate.value), newline=True)
         self._config.rate = rate
 
-        while not self.serial_port.in_waiting:
-            time.sleep(0.01)
-        return self.read_all_messages(system=True)
+        return self.read_message(system=True, read_all=True, blocking=True)
 
     def set_address(
         self,
@@ -216,7 +213,8 @@ class NRF:
             "AT+"
             + ("R" if address_type == AddressType.ADDRESS_LOCAL else "T")
             + "XA="
-            + ",".join([f"0x{byte:02X}" for byte in address])
+            + ",".join([f"0x{byte:02X}" for byte in address]),
+            newline=True
         )
 
         if address_type == AddressType.ADDRESS_LOCAL:
@@ -224,9 +222,7 @@ class NRF:
         else:
             self._config.target_address = address
 
-        while not self.serial_port.in_waiting:
-            time.sleep(0.01)
-        return self.read_all_messages(system=True)
+        return self.read_message(system=True, read_all=True, blocking=True)
 
     def set_freq(self, freq: int) -> list[str]:
         """Sets the frequency of the nrf module"""
@@ -234,12 +230,10 @@ class NRF:
         if freq < 400 or freq > 525:
             raise ValueError("Invalid frequency")
 
-        self.send_message("AT+FREQ=" + str(freq))
+        self.send_message("AT+FREQ=" + str(freq), newline=True)
         self._config.freq = freq
 
-        while not self.serial_port.in_waiting:
-            time.sleep(0.01)
-        return self.read_all_messages(system=True)
+        return self.read_message(system=True, read_all=True, blocking=True)
 
     def set_checksum(self, checksum: int) -> None:
         """Sets the checksum of the nrf module"""
@@ -247,12 +241,10 @@ class NRF:
         if checksum < 8 or checksum > 16:
             raise ValueError("Invalid checksum")
 
-        self.send_message("AT+CRC=" + str(checksum))
+        self.send_message("AT+CRC=" + str(checksum), newline=True)
         self._config.checksum = checksum
 
-        while not self.serial_port.in_waiting:
-            time.sleep(0.01)
-        self.read_all_messages(system=True)
+        return self.read_message(system=True, read_all=True, blocking=True)
 
     def get_system_info(self) -> dict[str, object] | None:
         """Gets the system information of the nrf module"""
@@ -260,12 +252,8 @@ class NRF:
         def get_value(line: str) -> str:
             return line.split("：")[1].strip()
 
-        self.send_message("AT?")
-
-        while not self.serial_port.in_waiting:
-            time.sleep(0.01)
-
-        data = self.read_all_messages(system=True)
+        self.send_message("AT?", newline=True)
+        data = self.read_message(system=True, read_all=True, blocking=True)
         info = {}
 
         for line, text in enumerate(data):

@@ -52,6 +52,7 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 - [ ] Add more error handling
 - [X] Improve initialization time
 - [X] Improve reliablity
+- [ ] Add async support
 
 ## Thanks
 
