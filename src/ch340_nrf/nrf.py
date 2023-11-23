@@ -7,6 +7,12 @@ import serial
 from . import translator
 
 
+def decode_all(data: list[bytes], encoding: str = "utf-8") -> list[str]:
+    """Decodes all bytes in a list of bytes"""
+
+    return [line.decode(encoding) for line in data]
+
+
 class BAUDRATE(enum.Enum):
     """A class for NRF baudrates"""
 
@@ -128,8 +134,15 @@ class Config:
 class NRF:
     """NRF class for controlling nrf modules with CH340 serial adapters"""
 
-    def __init__(
-        self, port: str, config: Config | None = None) -> None:
+    @staticmethod
+    def handle_system_messages(messages: list[bytes]) -> list[str]:
+        """Handles system messages from the nrf module"""
+
+        messages = decode_all(messages, "gb18030")
+        messages = [translator.translate(message.replace("\r\n", "")) for message in messages]
+        return messages
+
+    def __init__(self, port: str, config: Config | None = None) -> None:
         self.serial_port = serial.Serial(port=port, baudrate=config.baudrate.value)
 
         if config:
@@ -138,36 +151,33 @@ class NRF:
         else:
             self._config = self.get_config()
 
-    def send_message(self, message: str, newline: bool = False) -> None:
+    def send_message(self, message: bytes | bytearray | str) -> None:
         """Sends a message to the nrf module"""
 
-        self.serial_port.write((message + ("\r\n" if newline else "")).encode())
+        if isinstance(message, str):
+            message = message.encode()
+
+        self.serial_port.write(message)
 
     def read_message(
         self,
-        system: bool = False,
         read_all: bool = False,
         blocking: bool = False,
         timeout: float = 1.0,
-    ) -> str | None | list[str]:
+    ) -> bytes | list[bytes]:
         """Reads a message from the nrf module"""
 
         if blocking:
             start = time.time()
             while self.serial_port.in_waiting == 0:
                 if time.time() - start > timeout:
-                    return None
+                    raise TimeoutError("Timeout while waiting for message")
                 time.sleep(0.01)
 
         messages = []
 
         while self.serial_port.in_waiting > 0:
             message = self.serial_port.readline()
-
-            if system:
-                message = translator.translate(message.decode("gb18030"))
-            else:
-                message = message.decode("utf-8")
 
             if not read_all:
                 return message
@@ -182,11 +192,11 @@ class NRF:
         if baudrate not in BAUDRATE:
             raise ValueError("Invalid baudrate")
 
-        self.send_message("AT+BAUD=" + str(baudrate.value), newline=True)
+        self.send_message("AT+BAUD=" + str(baudrate.value) + "\r\n")
         self.serial_port.baudrate = baudrate.value
         self._config.baudrate = baudrate
 
-        return self.read_message(system=True, read_all=True, blocking=True)
+        return NRF.handle_system_messages(self.read_message(read_all=True, blocking=True))
 
     def set_rate(self, rate: RATE) -> list[str]:
         """Sets the transmission rate of the nrf module"""
@@ -194,10 +204,10 @@ class NRF:
         if rate not in RATE:
             raise ValueError("Invalid rate")
 
-        self.send_message("AT+RATE=" + str(rate.value), newline=True)
+        self.send_message("AT+RATE=" + str(rate.value) + "\r\n")
         self._config.rate = rate
 
-        return self.read_message(system=True, read_all=True, blocking=True)
+        return NRF.handle_system_messages(self.read_message(read_all=True, blocking=True))
 
     def set_address(
         self,
@@ -213,8 +223,8 @@ class NRF:
             "AT+"
             + ("R" if address_type == AddressType.ADDRESS_LOCAL else "T")
             + "XA="
-            + ",".join([f"0x{byte:02X}" for byte in address]),
-            newline=True
+            + ",".join([f"0x{byte:02X}" for byte in address])
+            + "\r\n"
         )
 
         if address_type == AddressType.ADDRESS_LOCAL:
@@ -222,7 +232,7 @@ class NRF:
         else:
             self._config.target_address = address
 
-        return self.read_message(system=True, read_all=True, blocking=True)
+        return NRF.handle_system_messages(self.read_message(read_all=True, blocking=True))
 
     def set_freq(self, freq: int) -> list[str]:
         """Sets the frequency of the nrf module"""
@@ -230,10 +240,10 @@ class NRF:
         if freq < 400 or freq > 525:
             raise ValueError("Invalid frequency")
 
-        self.send_message("AT+FREQ=" + str(freq), newline=True)
+        self.send_message("AT+FREQ=" + str(freq) + "\r\n")
         self._config.freq = freq
 
-        return self.read_message(system=True, read_all=True, blocking=True)
+        return NRF.handle_system_messages(self.read_message(read_all=True, blocking=True))
 
     def set_checksum(self, checksum: int) -> None:
         """Sets the checksum of the nrf module"""
@@ -241,10 +251,10 @@ class NRF:
         if checksum < 8 or checksum > 16:
             raise ValueError("Invalid checksum")
 
-        self.send_message("AT+CRC=" + str(checksum), newline=True)
+        self.send_message("AT+CRC=" + str(checksum) + "\r\n")
         self._config.checksum = checksum
 
-        return self.read_message(system=True, read_all=True, blocking=True)
+        return NRF.handle_system_messages(self.read_message(read_all=True, blocking=True))
 
     def get_system_info(self) -> dict[str, object] | None:
         """Gets the system information of the nrf module"""
@@ -252,8 +262,9 @@ class NRF:
         def get_value(line: str) -> str:
             return line.split("：")[1].strip()
 
-        self.send_message("AT?", newline=True)
-        data = self.read_message(system=True, read_all=True, blocking=True)
+        self.send_message("AT?" + "\r\n")
+        data = NRF.handle_system_messages(self.read_message(read_all=True, blocking=True))
+
         info = {}
 
         for line, text in enumerate(data):
@@ -286,7 +297,7 @@ class NRF:
                 info["rate"] = RATE.parse_string(get_value(text))
 
             elif line == 9:
-                info["gain"] = get_value(text)
+                info["gain"] = get_value(text) == "On"
 
         if not info:
             return None
