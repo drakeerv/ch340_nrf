@@ -46,13 +46,12 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 
 ## TODO
 
-- [ ] Organize code better
-- [ ] Add more functions
+- [X] Organize code better
 - [ ] Add more documentation
 - [ ] Add more examples
 - [ ] Add more error handling
-- [ ] Improve initialization time
-- [ ] Improve reliablity (remove time.sleep())
+- [X] Improve initialization time
+- [X] Improve reliablity
 
 ## Thanks
 

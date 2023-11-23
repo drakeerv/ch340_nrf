@@ -1,6 +1,4 @@
-"""
-Main nrf class for controlling nrf modules with CH340 serial adapters
-"""
+"""Main nrf class for controlling nrf modules with CH340 serial adapters"""
 
 import time
 import enum
@@ -41,6 +39,13 @@ class RATE(enum.Enum):
     RATE_250K = 1
     RATE_1M = 2
     RATE_2M = 3
+
+
+class AddressType(enum.Enum):
+    """A class for different address types"""
+
+    ADDRESS_LOCAL = "local"
+    ADDRESS_TARGET = "target"
 
 
 class Address:
@@ -180,7 +185,8 @@ class NRF:
         self.serial_port.baudrate = baudrate.value
         self._config.baudrate = baudrate
 
-        time.sleep(0.2)
+        while not self.serial_port.in_waiting:
+            time.sleep(0.01)
         return self.read_all_messages(system=True)
 
     def set_rate(self, rate: RATE) -> list[str]:
@@ -192,35 +198,34 @@ class NRF:
         self.send_message("AT+RATE=" + str(rate.value))
         self._config.rate = rate
 
-        time.sleep(0.2)
+        while not self.serial_port.in_waiting:
+            time.sleep(0.01)
         return self.read_all_messages(system=True)
 
-    def set_local_address(self, local_address: Address | tuple[int]) -> list[str]:
-        """Sets the local address of the nrf module"""
+    def set_address(
+        self,
+        address: Address | tuple[int],
+        address_type: AddressType = AddressType.ADDRESS_LOCAL,
+    ) -> list[str]:
+        """Sets the specified address of the nrf module"""
 
-        if isinstance(local_address, tuple):
-            local_address = Address(local_address)
-
-        self.send_message(
-            "AT+RXA=" + ",".join([f"0x{byte:02X}" for byte in local_address])
-        )
-        self._config.local_address = local_address
-
-        time.sleep(0.2)
-        return self.read_all_messages(system=True)
-
-    def set_target_address(self, target_address: Address | tuple[int]) -> list[str]:
-        """Sets the target address of the nrf module"""
-
-        if isinstance(target_address, tuple):
-            target_address = Address(target_address)
+        if isinstance(address, tuple):
+            address = Address(address)
 
         self.send_message(
-            "AT+TXA=" + ",".join([f"0x{byte:02X}" for byte in target_address])
+            "AT+"
+            + ("R" if address_type == AddressType.ADDRESS_LOCAL else "T")
+            + "XA="
+            + ",".join([f"0x{byte:02X}" for byte in address])
         )
-        self._config.target_address = target_address
 
-        time.sleep(0.2)
+        if address_type == AddressType.ADDRESS_LOCAL:
+            self._config.local_address = address
+        else:
+            self._config.target_address = address
+
+        while not self.serial_port.in_waiting:
+            time.sleep(0.01)
         return self.read_all_messages(system=True)
 
     def set_freq(self, freq: int) -> list[str]:
@@ -232,7 +237,8 @@ class NRF:
         self.send_message("AT+FREQ=" + str(freq))
         self._config.freq = freq
 
-        time.sleep(0.2)
+        while not self.serial_port.in_waiting:
+            time.sleep(0.01)
         return self.read_all_messages(system=True)
 
     def set_checksum(self, checksum: int) -> None:
@@ -244,17 +250,20 @@ class NRF:
         self.send_message("AT+CRC=" + str(checksum))
         self._config.checksum = checksum
 
-        time.sleep(0.2)
+        while not self.serial_port.in_waiting:
+            time.sleep(0.01)
         self.read_all_messages(system=True)
 
-    def get_system_info(self) -> dict[str, any] | None:
+    def get_system_info(self) -> dict[str, object] | None:
         """Gets the system information of the nrf module"""
 
         def get_value(line: str) -> str:
             return line.split("：")[1].strip()
 
         self.send_message("AT?")
-        time.sleep(0.5)
+
+        while not self.serial_port.in_waiting:
+            time.sleep(0.01)
 
         data = self.read_all_messages(system=True)
         info = {}
@@ -296,7 +305,7 @@ class NRF:
 
         return info
 
-    def get_config(self, system_info: dict[str | any] | None = None ) -> Config | None:
+    def get_config(self, system_info: dict[str, object] | None = None) -> Config | None:
         """Convert system info into a Config"""
 
         return Config(**(system_info if system_info else self.get_system_info()))
@@ -311,10 +320,10 @@ class NRF:
             self.set_rate(config.rate)
 
         if config.local_address != self._config.local_address:
-            self.set_local_address(config.local_address)
+            self.set_address(config.local_address, AddressType.ADDRESS_LOCAL)
 
         if config.target_address != self._config.target_address:
-            self.set_target_address(config.target_address)
+            self.set_address(config.target_address, AddressType.ADDRESS_TARGET)
 
         if config.freq != self._config.freq:
             self.set_freq(config.freq)
