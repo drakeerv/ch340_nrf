@@ -93,8 +93,8 @@ class Config:
         self,
         baudrate: BAUDRATE = BAUDRATE.BAUDRATE_9600,
         rate: RATE = RATE.RATE_1M,
-        local_address: Address = Address((0x00, 0x00, 0x00, 0x00, 0x00)),
-        target_address: Address = Address((0x00, 0x00, 0x00, 0x00, 0x00)),
+        local_address: Address = Address((0, 0, 0, 0, 0)),
+        target_address: Address = Address((0, 0, 0, 0, 0)),
         freq: int = 400,
         checksum: int = 16,
     ) -> None:
@@ -143,7 +143,13 @@ class NRF:
         return messages
 
     def __init__(self, port: str, config: Config | None = None) -> None:
-        self.serial_port = serial.Serial(port=port, baudrate=config.baudrate.value)
+        self.serial_port = serial.Serial(
+            port=port,
+            baudrate=config.baudrate.value,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            bytesize=serial.EIGHTBITS
+        )
 
         if config:
             self._config = config
